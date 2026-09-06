@@ -2336,6 +2336,14 @@ function NullUI:CreateWindow(opts)
 		_busy           = false,
 		_destroyed      = false,
 		_searchIndex    = {},
+		_lastAppliedTheme = {
+			Background = NullUI.Theme.Background,
+			Surface = NullUI.Theme.Surface,
+			Text = NullUI.Theme.Text,
+			TextDim = NullUI.Theme.TextDim,
+			Accent = NullUI.Theme.Accent,
+			Secondary = NullUI.Theme.Secondary,
+		},
 		_useBlur        = opts.UseBlur ~= false,
 		_defaultTabName = opts.DefaultTab,
 		_tabChangeListeners = {},
@@ -2494,6 +2502,56 @@ end
 function Window:SetTitle(title, subtitle)
 	if self._titleLabel then self._titleLabel.Text = title or self._titleLabel.Text end
 	if subtitle and self._subLabel then self._subLabel.Text = subtitle end
+end
+
+function Window:ApplyTheme(theme)
+	if self._destroyed or type(theme) ~= "table" or not self._gui then return end
+
+	local oldTheme = self._lastAppliedTheme or {}
+	local oldBackground = oldTheme.Background
+	local oldSurface = oldTheme.Surface
+	local oldText = oldTheme.Text
+	local oldTextDim = oldTheme.TextDim
+	local oldAccent = oldTheme.Accent
+	local oldSecondary = oldTheme.Secondary
+
+	local function remap(color)
+		if oldBackground and color == oldBackground then return theme.Background end
+		if oldSurface and color == oldSurface then return theme.Surface end
+		if oldText and color == oldText then return theme.Text end
+		if oldTextDim and color == oldTextDim then return theme.TextDim end
+		if oldAccent and color == oldAccent then return theme.Accent end
+		if oldSecondary and color == oldSecondary then return theme.Secondary end
+		return nil
+	end
+
+	for _, descendant in ipairs(self._gui:GetDescendants()) do
+		if descendant:IsA("GuiObject") then
+			local mapped = remap(descendant.BackgroundColor3)
+			if mapped then descendant.BackgroundColor3 = mapped end
+		end
+		if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+			local mapped = remap(descendant.TextColor3)
+			if mapped then descendant.TextColor3 = mapped end
+		end
+		if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+			local mapped = remap(descendant.ImageColor3)
+			if mapped then descendant.ImageColor3 = mapped end
+		end
+		if descendant:IsA("UIStroke") then
+			local mapped = remap(descendant.Color)
+			if mapped then descendant.Color = mapped end
+		end
+	end
+
+	self._lastAppliedTheme = {
+		Background = theme.Background,
+		Surface = theme.Surface,
+		Text = theme.Text,
+		TextDim = theme.TextDim,
+		Accent = theme.Accent,
+		Secondary = theme.Secondary,
+	}
 end
 
 function Window:IsOpen()
